@@ -1,90 +1,108 @@
-import React from 'react';
+import React, { useEffect } from 'react';
+import { View, Text, Alert } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
-import { View, Text, Image } from 'react-native';
 import { useForm, Controller } from 'react-hook-form';
-import { zodResolver } from '@hookform/resolvers/zod';
-import { SignUpType, signUpSchema } from '@/validation/signUpSchema';
-import { Link } from 'expo-router';
+import { useRouter } from 'expo-router';
 import InputField from '@/components/CustomInput';
 import CustomButton from '@/components/CustomButton';
-import {icons, images} from '@/constants';
+import { icons } from '@/constants';
+import useAuthStore from '@/store/useAuthStore';
+
+// Define form data shape without Zod
+type SignUpForm = {
+  firstName: string;
+  lastName: string;
+  email: string;
+  password: string;
+};
 
 const SignUp = () => {
-    const {
-        control,
-        handleSubmit,
-        formState: { errors, isSubmitting },
-    } = useForm<SignUpType>({
-        resolver: zodResolver(signUpSchema),
-        mode: 'onBlur',
-    });
+  const router = useRouter();
 
-    const onSubmit = (data: SignUpType) => {
-        console.log('Validated data:', data);
-        // API hookup here
-    };
+  const {
+    control,
+    handleSubmit,
+    formState: { isSubmitting, errors },
+  } = useForm<SignUpForm>({
+    defaultValues: { firstName: '', lastName: '', email: '', password: '' },
+    mode: 'onSubmit',
+  });
 
-    return (
-        <SafeAreaView className="flex-1 bg-white justify-around ">
-            {/* Header */}
-            <View className="items-center justify-center h-30">
-                <Text className="text-3xl font-bold text-primary-200">Rawad al-Thaqafa</Text>
+  const { signup, isLoading, error } = useAuthStore();
 
-                <Text className="text-[#82a0b6] mt-2 text-lg">
-                    Join our cultural community!
-                </Text>
-            </View>
+  const onSubmit = async (data: SignUpForm) => {
+    try {
+      const response = await signup(data);
+      if (response) {
+        router.push('/verify-email');
+      }
+    } catch (err: any) {
+      Alert.alert('Sign Up Error', err.message);
+    }
+  };
 
-            {/* Form */}
-            <View className="px-5">
-                {[
-                    { name: 'firstName', label: 'First Name', icon: icons.person, placeholder: 'Enter first name' },
-                    { name: 'lastName', label: 'Last Name', icon: icons.person, placeholder: 'Enter last name' },
-                    { name: 'email', label: 'Email', icon: icons.email, placeholder: 'Enter email', textContentType: 'emailAddress' },
-                    { name: 'password', label: 'Password', icon: icons.lock, placeholder: 'Enter password', secureTextEntry: true, textContentType: 'password' },
-                ].map((field) => (
-                    <Controller
-                        key={field.name}
-                        control={control}
-                        name={field.name as keyof SignUpType}
-                        render={({ field: { value, onChange, onBlur } }) => (
-                            <>
-                                <InputField
-                                    label={field.label}
-                                    placeholder={field.placeholder}
-                                    icon={field.icon}
-                                    value={value as string}
-                                    onBlur={onBlur}
-                                    onChangeText={onChange}
-                                    secureTextEntry={field.secureTextEntry}
-                                    textContentType={field.textContentType as any}
-                                />
-                                {errors[field.name as keyof SignUpType] && (
-                                    <Text className="text-red-500 mt-1">
-                                        {errors[field.name as keyof SignUpType]?.message}
-                                    </Text>
-                                )}
-                            </>
-                        )}
-                    />
-                ))}
+  return (
+    <SafeAreaView className="flex-1 bg-white justify-around">
+      {/* Header */}
+      <View className="items-center justify-center h-30">
+        <Text className="text-3xl font-bold text-primary-200">Rawad al-Thaqafa</Text>
+        <Text className="text-[#82a0b6] mt-2 text-lg">Join our cultural community!</Text>
+      </View>
 
-                <CustomButton
-                    title={isSubmitting ? 'Submitting...' : 'Sign Up'}
-                    onPress={handleSubmit(onSubmit)}
-                    disabled={isSubmitting}
-                    className="mt-6"
+      {/* Form */}
+      <View className="px-5">
+        {(
+          [
+            { key: 'firstName', label: 'First Name', icon: icons.person, placeholder: 'Enter first name' },
+            { key: 'lastName', label: 'Last Name', icon: icons.person, placeholder: 'Enter last name' },
+            { key: 'email', label: 'Email', icon: icons.email, placeholder: 'Enter email', textContentType: 'emailAddress' },
+            { key: 'password', label: 'Password', icon: icons.lock, placeholder: 'Enter password', secureTextEntry: true, textContentType: 'password' },
+          ] as const
+        ).map((field) => (
+          <Controller
+            key={field.key}
+            control={control}
+            name={field.key as keyof SignUpForm}
+            render={({ field: { value, onChange, onBlur } }) => (
+              <>
+                <InputField
+                  label={field.label}
+                  placeholder={field.placeholder}
+                  icon={field.icon}
+                  value={value}
+                  onBlur={onBlur}
+                  onChangeText={onChange}
+                  secureTextEntry={field.secureTextEntry}
+                  textContentType={field.textContentType as any}
                 />
+                {errors[field.key as keyof SignUpForm] && (
+                  <Text className="text-red-500 mt-1">
+                    {errors[field.key as keyof SignUpForm]?.message}
+                  </Text>
+                )}
+              </>
+            )}
+          />
+        ))}
 
-                <Link href="/(root)/(tabs)/search" className="mt-6">
-                    <Text className="text-center text-general-200 text-lg">
-                        Already have an account?{' '}
-                        <Text className="text-primary-100">Log In</Text>
-                    </Text>
-                </Link>
-            </View>
-        </SafeAreaView>
-    );
+        {error && <Text className="text-red-500 text-center mt-2">{error}</Text>}
+
+        <CustomButton
+          title={isSubmitting || isLoading ? 'Signing Up...' : 'Sign Up'}
+          onPress={() => handleSubmit(onSubmit)()}
+          disabled={isSubmitting || isLoading}
+          className="mt-6"
+        />
+
+        <Text className="text-center text-general-200 text-lg mt-6">
+          Already have an account?{' '}
+          <Text onPress={() => router.push('/sign-in')} className="text-primary-100">
+            Log In
+          </Text>
+        </Text>
+      </View>
+    </SafeAreaView>
+  );
 };
 
 export default SignUp;

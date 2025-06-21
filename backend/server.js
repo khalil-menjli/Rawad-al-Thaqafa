@@ -14,7 +14,10 @@ import { db } from "./database/db.js";
 
 dotenv.config();
 const app = express();
-
+app.use(cors({
+  origin: true, // Allow all origins in development
+  credentials: true
+}));
 app.use(cors({ origin: "http://localhost:5173",credentials: true }));
 app.use(express.json());
 app.use(cookieParser()); 
@@ -27,7 +30,7 @@ app.use("/api/offers", offersRoutes);
 app.use("/api/tasks", tasksRoutes);
 
 
-app.listen(3000, () => {
+app.listen(3000, '0.0.0.0', () => {
     db();
     console.log("server is running on port 3000");
 });

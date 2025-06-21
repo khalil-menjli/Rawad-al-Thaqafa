@@ -1,12 +1,18 @@
 // controllers/authController.js
 import crypto from 'crypto';
-import { generateTokenAndSetCookie } from '../../utils/generateTokenAndSetCookie.js';
+import { generateTokenAndSetCookie, generateTokenOnly } from '../../utils/generateTokenAndSetCookie.js';
 import { sendVerificationEmail, sendPasswordResetEmail } from '../..//mail/emails.js';
 import  models from '../../model/account.model.js';
 import { log } from 'console';
 
 const { Account, Partner} = models;
 
+// Helper function to detect if request is from mobile
+const isMobileRequest = (req) => {
+  return req.headers['user-agent']?.includes('ReactNative') || 
+         req.headers['x-platform'] === 'mobile' ||
+         req.body.platform === 'mobile';
+};
 
 export const signup = async (req, res, next) => {
   try {
@@ -15,6 +21,7 @@ export const signup = async (req, res, next) => {
       businessName, description, location, websiteUrl, categories
     } = req.body;
     const file = req.file;
+    const isMobile = isMobileRequest(req);
 
     // Basic validation
     if (!email || !password || !firstName || !lastName || !role) {
@@ -55,8 +62,11 @@ export const signup = async (req, res, next) => {
 
     await account.save();
 
-    // Set JWT cookie and send email
-    const token = generateTokenAndSetCookie(res, account._id);
+    // Generate token - set cookie only for web
+    const token = isMobile ? 
+      generateTokenOnly(account._id) : 
+      generateTokenAndSetCookie(res, account._id);
+    
     await sendVerificationEmail(email, verificationToken);
 
     const safeAccount = account.toObject();
@@ -66,7 +76,13 @@ export const signup = async (req, res, next) => {
     delete safeAccount.verificationToken;
     delete safeAccount.verificationTokenExpiresAt;
 
-    res.status(201).json({ success: true, token, message: 'Signup successful', account: safeAccount });
+    res.status(201).json({ 
+      success: true, 
+      token, 
+      message: 'Signup successful', 
+      account: safeAccount,
+      isMobile // Let client know the platform detected
+    });
   } catch (err) {
     next(err);
   }
@@ -99,10 +115,13 @@ export const verifyEmail = async (req, res, next) => {
   }
 };
 
-// Login: authenticate and set cookie
+// Login: authenticate and set cookie for web, return token for mobile
 export const login = async (req, res, next) => {
   try {
     const { email, password } = req.body;
+    const isMobile = isMobileRequest(req);
+    if(isMobile){console.log("mobileeeeeeeeeeeeee");
+    }
     if (!email || !password) {
       return res.status(400).json({ message: 'Email and password are required.' });
     }
@@ -117,26 +136,48 @@ export const login = async (req, res, next) => {
       return res.status(401).json({ message: 'Invalid email or password.' });
     }
 
-    const token = generateTokenAndSetCookie(res, account._id);
+    // Generate token - set cookie only for web
+    const token = isMobile ? 
+      generateTokenOnly(account._id) : 
+      generateTokenAndSetCookie(res, account._id);
+      
     const safeAccount = account.toObject();
     delete safeAccount.password;
 
-    res.status(200).json({ success: true, message: 'Login successful', token, account: safeAccount });
+    res.status(200).json({ 
+      success: true, 
+      message: 'Login successful', 
+      token, 
+      account: safeAccount,
+      isMobile
+    });
   } catch (err) {
     next(err);
   }
 };
 
-// Logout: clear JWT cookie
+// Logout: clear JWT cookie for web, just return success for mobile
 export const logout = (req, res) => {
-  res.clearCookie('jwt');
-  res.status(200).json({ success: true, message: 'Logged out successfully.' });
+  const isMobile = isMobileRequest(req);
+  
+  if (!isMobile) {
+    res.clearCookie('jwt');
+    res.clearCookie('token'); // Clear both possible cookie names
+  }
+  
+  res.status(200).json({ 
+    success: true, 
+    message: 'Logged out successfully.',
+    isMobile
+  });
 };
 
 // Forgot password: send reset link
 export const forgotPassword = async (req, res, next) => {
   try {
     const { email } = req.body;
+    const isMobile = isMobileRequest(req);
+    
     if (!email) {
       return res.status(400).json({ message: 'Email is required.' });
     }
@@ -151,10 +192,18 @@ export const forgotPassword = async (req, res, next) => {
     account.resetPasswordExpiresAt = Date.now() + 3600000; // 1 hour
     await account.save();
 
-    const resetUrl = `${process.env.CLIENT_URL}/reset-password/${resetToken}`;
+    // Different URLs for web vs mobile deep linking
+    const resetUrl = isMobile ? 
+      `${process.env.MOBILE_DEEP_LINK_URL}/reset-password/${resetToken}` :
+      `${process.env.CLIENT_URL}/reset-password/${resetToken}`;
+      
     await sendPasswordResetEmail(account.email, resetUrl);
 
-    res.status(200).json({ success: true, message: 'Password reset email sent.' });
+    res.status(200).json({ 
+      success: true, 
+      message: 'Password reset email sent.',
+      resetToken: isMobile ? resetToken : undefined // Return token for mobile testing
+    });
   } catch (err) {
     next(err);
   }
@@ -191,16 +240,49 @@ export const resetPassword = async (req, res, next) => {
 // Check auth: return account data
 export const checkAuth = async (req, res, next) => {
   try {
+    console.log('🔍 checkAuth called for userId:', req.userId);
+    
+    // Check if userId exists (should be set by auth middleware)
+    if (!req.userId) {
+      console.log('   ❌ No userId in request');
+      return res.status(401).json({ 
+        success: false, 
+        message: 'Not authenticated.' 
+      });
+    }
+
     const account = await Account.findById(req.userId).select('-password');
     if (!account) {
-      return res.status(404).json({ success: false, message: 'Account not found.' });
+      console.log('   ❌ Account not found for userId:', req.userId);
+      return res.status(404).json({ 
+        success: false, 
+        message: 'Account not found.' 
+      });
     }
-    res.status(200).json({ success: true, account });
+
+    // Optional: Check if account is verified
+    /* if (!account.isApproved) {
+      console.log('   ❌ Account not approved:', account.email);
+      return res.status(403).json({
+        success: false,
+        message: 'Account not verified. Please verify your email.'
+      });
+    } */
+
+    console.log('   ✅ checkAuth successful for:', account.email);
+    
+    const isMobile = isMobileRequest(req);
+    
+    res.status(200).json({
+      success: true,
+      account,
+      isMobile
+    });
   } catch (err) {
+    console.error('❌ checkAuth error:', err);
     next(err);
   }
 };
-
 // Update profile: name and/or password
 export const updateProfile = async (req, res, next) => {
   try {

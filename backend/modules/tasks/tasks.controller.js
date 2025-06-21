@@ -1,6 +1,6 @@
 // point these at the right relative paths in your project
 import Tasks       from './tasks.model.js';
-import Reservation from '../../modules/Reservation/Reservation.model.js';
+import Reservation from '../offers Cultural/Reservation.model.js';
 import UserTask    from "./UserTask.model.js";
 
 // GET all tasks
@@ -102,7 +102,7 @@ export const deleteTask = async (req, res) => {
 
 // GET task status for current user
 export const checkTaskStatus = async (req, res) => {
-  const userId = req.user.id;
+  const userId = req.userId;
   const { taskId } = req.params;
 
   const task = await Tasks.findById(taskId);
@@ -136,7 +136,7 @@ export const checkTaskStatus = async (req, res) => {
 
 // POST claim points
 export const claimTask = async (req, res) => {
-  const userId = req.user.id;
+  const userId = req.userId;
   const { taskId } = req.params;
 
   const ut = await UserTask.findOne({ user: userId, task: taskId });
@@ -156,7 +156,7 @@ export const claimTask = async (req, res) => {
 
 // GET all claimed tasks for current user
 export const getClaimedTasks = async (req, res) => {
-  const userId = req.user.id;
+  const userId = req.userId;
   const list = await UserTask.find({ user: userId, isClaimed: true })
     .populate('task')
     .sort({ claimedAt: -1 });

@@ -8,7 +8,6 @@ const Sidebar = () => {
   if (!user) return null;
 
   const allLinks = [
-    { to: '/admin', label: 'Admin Dashboard', icon: Home, roles: ['Admin'] },
     { to: '/cultural-offers', label: 'Cultural Offers', icon: BookOpen, roles: ['Admin', 'Partner'] },
     { to: '/partners', label: 'Partners', icon: Building2Icon, roles: ['Admin'] },
     { to: '/users', label: 'Users', icon: Users, roles: ['Admin'] },

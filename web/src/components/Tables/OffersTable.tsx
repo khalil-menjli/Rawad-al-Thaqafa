@@ -129,7 +129,7 @@ export const OffersTable = ({ offers, onView, onEdit, onDelete, isAdmin }: Offer
                   <div className="w-20 h-20 rounded-lg overflow-hidden border border-gray-200">
                     {offer.imageUrl ? (
                       <img
-                          src={`http://localhost:3000/${offer.imageUrl}`}
+                          src={`http://localhost:3000${offer.imageUrl}`}
                           alt={offer.title}
                           className="w-full h-full object-cover"
                       />

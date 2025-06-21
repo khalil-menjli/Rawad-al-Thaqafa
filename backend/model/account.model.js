@@ -71,6 +71,8 @@ const Admin = Account.discriminator(
 const User = Account.discriminator(
   'User',
   new Schema({
+    points: { type: Number, required: true, trim: true },
+
   }, { _id: false })
 );
 

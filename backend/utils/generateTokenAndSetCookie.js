@@ -1,5 +1,13 @@
 import jwt from "jsonwebtoken";
 
+// Generate token only (for mobile)
+export const generateTokenOnly = (userId) => {
+	return jwt.sign({ userId }, process.env.JWT_SECRET, {
+		expiresIn: "7d",
+	});
+};
+
+// Generate token and set cookie (for web)
 export const generateTokenAndSetCookie = (res, userId) => {
 	const token = jwt.sign({ userId }, process.env.JWT_SECRET, {
 		expiresIn: "7d",

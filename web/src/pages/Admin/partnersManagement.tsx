@@ -301,7 +301,7 @@ export const PartnersPage = () => {
             {/* Left */}
             <div className="md:w-1/3">
               <div className="rounded-lg overflow-hidden shadow-md mb-4">
-                <img src={selectedPartner.imageUrl} alt={selectedPartner.businessName} className="w-full h-auto object-cover" />
+                <img src={`http://localhost:3000${selectedPartner.imageUrl}`} alt={selectedPartner.businessName} className="w-full h-auto object-cover" />
               </div>
               <div className="bg-gray-50 rounded-lg p-4">
                 <h2 className="text-lg font-bold text-[#2e4057] mb-3">{selectedPartner.businessName}</h2>
@@ -411,7 +411,7 @@ export const PartnersPage = () => {
                           <div className="bg-white rounded-lg overflow-hidden shadow-sm border border-gray-100">
                             <div className="h-32 overflow-hidden">
                               <img
-                                src={o.imageUrl}
+                                src={`http://localhost:3000/${o.imageUrl}`}
                                 alt={o.title}
                                 className="w-full h-full object-cover transform hover:scale-105 transition-transform duration-300"
                               />
